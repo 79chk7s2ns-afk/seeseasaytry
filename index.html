@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>见者由份 | Digital Garden</title>
+    <meta name="description" content="见者由份 - 见证理性与美的刚柔并济">
+
+    <!-- 1. 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                        serif: ['Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
+                    },
+                    boxShadow: {
+                        'apple': '0 10px 30px -10px rgba(0, 0, 0, 0.1)',
+                        'apple-hover': '0 20px 40px -15px rgba(0, 0, 0, 0.15)',
+                        'float': '0 20px 40px -10px rgba(0,0,0,0.08)',
+                        'card-float': '0 15px 35px -5px rgba(0, 0, 0, 0.1), 0 5px 15px -5px rgba(0, 0, 0, 0.05)',
+                    },
+                    animation: {
+                        'float-slow': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- 2. 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. 引入 Framer Motion -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <!-- 4. 引入 Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.05); border-radius: 10px; }
+        video { object-fit: cover; display: block; }
+        
+        /* 移动端优化样式 */
+        @media (max-width: 768px) {
+            .mobile-nav-bottom {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 50;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(229, 231, 235, 0.5);
+                box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.03);
+            }
+            
+            .mobile-safe-area {
+                padding-bottom: env(safe-area-inset-bottom, 20px);
+            }
+            
+            /* 药丸导航按钮样式 */
+            .mobile-nav-bottom button {
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-nav-bottom button:active {
+                transform: scale(0.95);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useRef, forwardRef, useEffect } = React;
+        const { createPortal } = ReactDOM;
+        const { motion, AnimatePresence, useMotionValue } = window.Motion;
+
+        // --- 图标组件 ---
+        const IconWrapper = ({ children, size = 20, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const Search = (props) => <IconWrapper {...props}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></IconWrapper>;
+        const Layers = (props) => <IconWrapper {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconWrapper>;
+        const Hash = (props) => <IconWrapper {...props}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></IconWrapper>;
+        const ArrowUpRight = (props) => <IconWrapper {...props}><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></IconWrapper>;
+        const Sparkles = (props) => <IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></IconWrapper>;
+        const Hand = (props) => <IconWrapper {...props}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a9 9 0 0 1 3.24-14.22L9 9"/></IconWrapper>;
+        const Move = (props) => <IconWrapper {...props}><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="19 9 22 12 19 15"/><polyline points="15 19 12 22 9 19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></IconWrapper>;
+        const MessageSquare = (props) => <IconWrapper {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconWrapper>;
+        const Globe = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconWrapper>;
+        const LayoutGrid = (props) => <IconWrapper {...props}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></IconWrapper>;
+        const Plus = (props) => <IconWrapper {...props}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconWrapper>;
+        const X = (props) => <IconWrapper {...props}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconWrapper>;
+        const ChevronDown = (props) => <IconWrapper {...props}><polyline points="6 9 12 15 18 9"/></IconWrapper>;
+        const ArrowRight = (props) => <IconWrapper {...props}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></IconWrapper>;
+
+        // --- 1. 基础配置与数据 ---
+
+        const NAV_STRUCTURE = [
+            { 
+                id: 'projects', 
+                label: '设计创意', 
+                hasChildren: true,
+                children: [
+                    { id: 'brand', label: '人文美学' }, 
+                    { id: 'fullstack', label: '全链路设计' }, 
+                ]
+            },
+            { id: 'life', label: '生活触角' }, 
+            { id: 'about', label: '见珺' }, 
+        ];
+
+        const PROFILE_DATA = {
+            id: 'profile-1',
+            title: '见者由份', 
+            subtitle: 'Digital Craftsman',
+            desc: '构建数字世界的诗意与秩序。',
+            avatar: './images/avatar.jpg', 
+            logo: './images/logo.png',
+            email: 'hello@alex.garden',
+        };
+
+        const MAP_LEVELS = [
+            { id: 'brand', label: 'Brand', caption: '人文美学', colorClass: 'bg-[#85CFC5]', dotSize: 28, coords: { x: -160, y: 0, z: 0 } }, 
+            { id: 'fullstack', label: 'Full-Stack', caption: '全链路设计', colorClass: 'bg-blue-600', dotSize: 28, coords: { x: 160, y: 0, z: 0 } }, 
+        ];
+
+        const FILTERS = [
+          { id: 'all', label: '全部' },
+          { id: 'brand', label: '人文美学' },
+          { id: 'fullstack', label: '全链路设计' },
+        ];
+
+        // --- 本地化 MOCK DATA ---
+        const MOCK_DATA = [
+          // --- 1. 人文美学 (Brand) ---
+          // --- 起伏 ---
+          { id: 'brand-4', type: 'design', projectType: 'brand', title: '起伏冥想·香港设计奖金奖', category: '冥想', industry: '医疗疗愈', image: './images/brand-4.jpg', 
+          desc: "[img: ./images/qifu/qifu1.jpg][img: ./images/qifu/qifumotion.mp4][img: ./images/qifu/qifu2.jpg][img: ./images/qifu/qifu3.jpg][img: ./images/qifu/qifu4.jpg][img: ./images/qifu/qifu5.jpg][img: ./images/qifu/qifu6.jpg][img: ./images/qifu/qifu8.jpg][img: ./images/qifu/qifu9.jpg][img: ./images/qifu/qifu10.jpg][img: ./images/qifu/qifu11.jpg][img: ./images/qifu/qifu12.jpg][img: ./images/qifu/qifu13.jpg][img: ./images/qifu/qifu14.jpg][img: ./images/qifu/qifu15.jpg][img: ./images/qifu/qifu16.jpg][img: ./images/qifu/qifu17.jpg]",
+        width: 'w-80', 
+          height: 'h-60' 
+        },
+        // --- 心流花园 ---
+          { id: 'brand-2', type: 'design', projectType: 'brand', title: '心流花园·疗愈小程序', category: '冥想', industry: '医疗疗愈', image: './images/brand-2.jpg', 
+          desc: "[img: ./images/flow/flow0.jpg][img: ./images/flow/flow1.jpg][img: ./images/flow/flow2.jpg][img: ./images/flow/flow3.jpg][img: ./images/flow/flow4.jpg][img: ./images/flow/flow5.jpg][img: ./images/flow/demo.mp4][img: ./images/flow/flow6.jpg][img: ./images/flow/flow7.jpg][img: ./images/flow/flow8.jpg][img: ./images/flow/flow9.jpg][img: ./images/flow/flow10.jpg]", 
+          width: 'w-80', height: 'h-60' },
+         // --- 梵花田 ---
+          { id: 'brand-3', type: 'design', projectType: 'brand', title: '梵花田冥想APP', category: '冥想', industry: '医疗疗愈', image: './images/brand-3.jpg', 
+          desc:"[img: ./images/f/f0.jpg][img: ./images/f/f1.jpg][img: ./images/f/f2.jpg][img: ./images/f/f3.jpg][img: ./images/f/f4.jpg][img: ./images/f/f5.jpg][img: ./images/f/f6.jpg][img: ./images/f/f61.jpg][img: ./images/f/f62.mp4][img: ./images/f/f7.jpg][img: ./images/f/f8.jpg][img: ./images/f/f9.jpg][img: ./images/f/f10.jpg][img: ./images/f/f11.jpg] ", 
+          width: 'w-64', height: 'h-80' },
+         // --- 为你读诗 ---
+          { id: 'brand-1', type: 'design', projectType: 'brand', title: '为你读诗人文俱乐部', category: '诗意', industry: '文化艺术', image: './images/brand-1.jpg', hoverImage: './images/brand-1-detail.jpg', desc: '以声音与诗歌为媒介，构建城市中的人文精神栖息地。', tags: ['诗意', '文化'], width: 'w-80', height: 'h-80' },
+          
+          // ClassIn 视觉升级
+          { 
+            id: 'brand-5', 
+            type: 'design', 
+            projectType: 'brand', 
+            title: 'ClassIn视觉升级·红点奖', 
+            category: '教育x叙事', 
+            industry: '教育科技', 
+            image: './images/classincover.jpg', 
+            hoverImage: './images/classin-top.jpg', 
+            // 纯媒体列表，无文字，无缝衔接 1-9
+            desc: "[img: ./images/classindetail1.jpg][img: ./images/classindetail2.jpg][img: ./images/classindetail3.jpg][img: ./images/classindetail4.jpg][img: ./images/classindetail5.jpg][img: ./images/classindetail6.jpg][img: ./images/classindetail7.jpg][img: ./images/classindetail8.jpg][img: ./images/classindetail9.jpg]",
+            tags: ['教育', 'B端'], 
+            width: 'w-96', 
+            height: 'h-72' 
+          },
+          { id: 'brand-baby', type: 'design', projectType: 'brand', title: '宝宝动物爬垫', category: '儿童产品', industry: '母婴', image: './images/brand-1.jpg', hoverImage: './images/brand-1-detail.jpg', desc: '为婴幼儿设计的安全环保爬垫，融合动物元素与教育功能。', tags: ['儿童', '产品'], width: 'w-64', height: 'h-64' },
+          { id: 'brand-6', type: 'design', projectType: 'brand', title: '联合国儿童基金会线下体验', category: '线下体验', industry: '公益', image: './images/brand-6.jpg', hoverImage: './images/brand-6-detail.jpg', desc: '通过沉浸式线下装置唤起公众对儿童权益的关注。', tags: ['公益', '线下'], width: 'w-80', height: 'h-56' },
+
+          // 新增：百年宝诚 (大卡片) - 回归普通布局
+          { 
+            id: 'brand-10', 
+            type: 'design', 
+            projectType: 'brand', 
+            title: '百年宝诚美学手册设计', 
+            category: '珠宝x品牌叙事x美学解构', 
+            industry: '消费零售', 
+            image: './images/bc/bc0.webp', 
+            hoverImage: './images/baocheng-top.jpg', 
+            desc: "[img: ./images/baocheng-detail1.jpg][img: ./images/baocheng-detail2.jpg][img: ./images/baocheng-detail3.jpg][img: ./images/baocheng-detail4.jpg][img: ./images/baocheng-detail5.jpg]", 
+            tags: ['传统', '焕新'], 
+            width: 'w-96', 
+            height: 'h-72' 
+          },
+          
+          { id: 'brand-7', type: 'design', projectType: 'brand', title: '小虎AI', category: 'AIxiPx教育', industry: '教育科技', image: './images/brand-7.jpg', hoverImage: './images/brand-7-detail.jpg', desc: '为AI教育产品赋予温暖、亲和的品牌人格。', tags: ['教育', 'AI'], width: 'w-56', height: 'h-64' },
+          { id: 'brand-8', type: 'design', projectType: 'brand', title: '公墓小程序', category: '生命', industry: '生命服务', image: './images/brand-8.jpg', hoverImage: './images/brand-8-detail.jpg', desc: '以庄重与温情重新定义生命终章的数字化服务体验。', tags: ['生命', '服务'], width: 'w-64', height: 'h-48' },
+          { id: 'brand-9', type: 'design', projectType: 'brand', title: '人生复利行动营', category: 'AIx成长', industry: '知识付费', image: './images/brand-9.jpg', hoverImage: './images/brand-9-detail.jpg', desc: '个人成长社群的视觉动能与品牌识别系统。', tags: ['成长', '社群'], width: 'w-48', height: 'h-48' },
+
+          // --- 2. 全链路设计 (Fullstack) ---
+          { id: 'design-1', type: 'design', projectType: 'fullstack', title: 'Serenity App', category: 'UI/UX', industry: '医疗疗愈', image: './images/p3-cover.jpg', hoverImage: './images/p3-detail.jpg', desc: '基于认知行为疗法的心理健康应用。', tags: ['UI', '交互', '疗愈'], width: 'w-48', height: 'h-48' },
+          { id: 'design-4', type: 'design', projectType: 'fullstack', title: 'AI Dashboard', category: 'SaaS', industry: '科技', image: './images/p4-cover.jpg', hoverImage: './images/p4-detail.jpg', desc: '高信噪比数据可视化系统。', tags: ['UI', 'B端', '系统'], width: 'w-96', height: 'h-64' },
+          { id: 'design-5', type: 'design', projectType: 'fullstack', title: 'Future Mobility', category: 'HMI', industry: '科技', image: './images/p5-cover.jpg', hoverImage: './images/p5-detail.jpg', desc: '未来自动驾驶座舱的人机交互概念。', tags: ['概念', '车载'], width: 'w-72', height: 'h-56' },
+          { id: 'design-3', type: 'design', projectType: 'fullstack', title: 'Eco Labs', category: 'Packaging', industry: '快消', image: './images/p6-cover.jpg', hoverImage: './images/p6-detail.jpg', desc: '零废弃包装设计，提升货架吸引力。', tags: ['包装', '营销'], width: 'w-64', height: 'h-64' },
+          { id: 'design-new-2', type: 'design', projectType: 'fullstack', title: 'Smart Home', category: 'App Design', industry: '科技', image: './images/p8-cover.jpg', hoverImage: './images/p8-detail.jpg', desc: '全屋智能控制中心的极简交互设计。', tags: ['App', '智能家居'], width: 'w-56', height: 'h-48' },
+          { id: 'design-new-3', type: 'design', projectType: 'fullstack', title: 'E-Shop Redesign', category: 'Web Design', industry: '电商', image: './images/p9-cover.jpg', hoverImage: './images/p9-detail.jpg', desc: '电商网站重构，显著提升转化率。', tags: ['网页', '增长'], width: 'w-80', height: 'h-56' },
+          { id: 'design-new-5', type: 'design', projectType: 'fullstack', title: 'Fintech Dash', category: 'B-End', industry: '金融', image: './images/p11-cover.jpg', hoverImage: './images/p11-detail.jpg', desc: '金融科技后台数据管理系统。', tags: ['B端', '金融'], width: 'w-64', height: 'h-48' },
+
+          // --- 3. 生活触角 (Life: Thought + Photo) ---
+          { id: 'thought-1', type: 'thought', title: '设计即翻译', content: '“设计是将混乱翻译成直觉的诗歌。”', tags: ['观点', '哲学'], width: 'w-56', height: 'h-56', bg: 'bg-[#faf9f6]' },
+          { id: 'thought-2', type: 'thought', title: '数字花园', content: '不追求完结，\n只追求生长。', tags: ['随笔', '哲学'], width: 'w-48', height: 'h-64', bg: 'bg-stone-50' },
+          { id: 'thought-3', type: 'thought', title: '无用之用', content: '“人皆知有用之用，\n而莫知无用之用也。”', tags: ['观点', '庄子'], width: 'w-64', height: 'h-48', bg: 'bg-zinc-50' },
+          { id: 'photo-1', type: 'photo', title: 'Urban Silence', location: 'Tokyo', image: './images/photo-1.jpg', hoverImage: './images/photo-1.jpg', desc: '喧嚣都市中的静谧一隅。', tags: ['摄影', '街头'], width: 'w-64', height: 'h-64' },
+          { id: 'photo-2', type: 'photo', title: 'Light Studies', location: 'Studio', image: './images/photo-2.jpg', hoverImage: './images/photo-2.jpg', desc: '探索光影与几何结构的互动关系。', tags: ['光影', '静物'], width: 'w-56', height: 'h-80' },
+          { id: 'photo-3', type: 'photo', title: 'Neon Nights', location: 'Hong Kong', image: './images/photo-3.jpg', hoverImage: './images/photo-3.jpg', desc: '赛博朋克风格的城市夜景记录。', tags: ['摄影', '夜景'], width: 'w-64', height: 'h-64' },
+          { id: 'photo-4', type: 'photo', title: 'Mountain Mist', location: 'Swiss Alps', image: './images/photo-4.jpg', hoverImage: './images/photo-4.jpg', desc: '清晨迷雾笼罩下的山脉肌理。', tags: ['摄影', '自然'], width: 'w-64', height: 'h-64' },
+          { id: 'photo-5', type: 'photo', title: 'Rainy Day', location: 'London', image: './images/photo-5.jpg', hoverImage: './images/photo-5.jpg', desc: '雨天的伦敦街头。', tags: ['摄影', '雨天'], width: 'w-56', height: 'h-64' },
+          { id: 'photo-6', type: 'photo', title: 'Desert Winds', location: 'Sahara', image: './images/photo-6.jpg', hoverImage: './images/photo-6.jpg', desc: '撒哈拉沙漠的风与沙。', tags: ['摄影', '自然'], width: 'w-80', height: 'h-56' },
+          { id: 'photo-7', type: 'photo', title: 'Minimal Architecture', location: 'Copenhagen', image: './images/photo-7.jpg', hoverImage: './images/photo-7.jpg', desc: '极简主义建筑线条。', tags: ['摄影', '建筑'], width: 'w-48', height: 'h-80' },
+          { id: 'photo-8', type: 'photo', title: 'Coffee Break', location: 'Paris', image: './images/photo-8.jpg', hoverImage: './images/photo-8.jpg', desc: '午后的一杯咖啡。', tags: ['摄影', '生活'], width: 'w-64', height: 'h-64' },
+        ];
+
+        // --- 证书 ---
+        const CERTIFICATES = [
+            { id: 1, title: "高级交互设计认证", issuer: "Design Institute", image: "./images/cert-1.jpg" },
+            { id: 2, title: "品牌叙事大师班", issuer: "Story Guild", image: "./images/cert-2.jpg" },
+            { id: 3, title: "系统思考与复杂性", issuer: "Systems Academy", image: "./images/cert-3.jpg" },
+            { id: 4, title: "人文疗愈项目实践", issuer: "Healing Center", image: "./images/cert-4.jpg" },
+        ];
+
+        // --- “关于我” 页面的散落素材 ---
+        
+        const ABOUT_ITEMS = [
+            { id: 'hero', type: 'hero', x: 0, y: 0, w: 400, h: 700, rotate: 0, z: 10, content: "./images/about-hero.jpg" },
+            { id: 'quote', type: 'note', x: -350, y: -150, w: 220, h: 200, rotate: -4, z: 5, content: "见天地\n见众生\n见自己", bg: 'bg-yellow-50' },
+            { id: 'cert-1', type: 'image', x: -280, y: 220, w: 240, h: 180, rotate: 3, z: 4, content: "./images/cert-1.jpg", label: "高级交互设计" },
+            { id: 'cert-2', type: 'image', x: 320, y: -180, w: 240, h: 160, rotate: 5, z: 3, content: "./images/cert-2.jpg", label: "品牌叙事" },
+            { id: 'life-1', type: 'image', x: 300, y: 150, w: 200, h: 260, rotate: -2, z: 6, content: "./images/photo-1.jpg", label: "Gym Life" },
+            { id: 'life-2', type: 'image', x: -120, y: -320, w: 180, h: 180, rotate: 6, z: 2, content: "./images/photo-2.jpg", label: "Travel" },
+        ];
+
+        // --- 2. 基础组件 ---
+
+        // --- 智能媒体渲染组件 ---
+        const MediaDisplay = ({ src, alt, className }) => {
+            if (!src) return null;
+            const isVideo = src.toLowerCase().match(/\.(mp4|webm)(\?.*)?$/);
+            if (isVideo) {
+                return <video src={src} className={className} autoPlay loop muted playsInline />;
+            }
+            return <img src={src} alt={alt} className={className} loading="lazy" />;
+        };
+
+        const MarketingModal = ({ onClose }) => {
+            const marketingData = {
+                title: "数字创意合作", 
+                heroImage: "./images/marketing-hero.jpg", 
+                content: [
+                    { type: 'text', text: "欢迎探索我们的创意世界。我们致力于将人文深度与商业理性无缝结合。" },
+                    { type: 'image', url: "./images/p1-detail.jpg" }, 
+                    { type: 'text', text: "期待与您共同见证理性与美的刚柔并济。" },
+                ],
+            };
+            return createPortal(
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-xl transition-all duration-500" onClick={onClose} />
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="relative bg-white w-[95%] md:w-[450px] h-[70%] rounded-3xl shadow-2xl overflow-hidden z-10 border border-white/60 flex flex-col">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-50 sticky top-0 z-20 bg-white/80 backdrop-blur-md">
+                            <div><h3 className="text-xl font-bold text-gray-900">合作咨询</h3><p className="text-xs text-gray-400">Marketing & Collaboration</p></div>
+                            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-black transition-colors"><X size={20} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                            <div className="space-y-8 text-center">
+                                <div className="w-full aspect-video relative mb-4 rounded-xl overflow-hidden">
+                                     <MediaDisplay src={marketingData.heroImage} className="w-full h-full object-cover" />
+                                </div>
+                                <p className="text-sm text-gray-600 leading-relaxed">致力于将人文深度转化为商业价值。<br/>期待与您在品牌、体验、增长领域深度合作。</p>
+                                <a href={`mailto:${PROFILE_DATA.email}`} className="block w-full bg-black text-white py-4 rounded-2xl font-bold text-sm hover:bg-gray-800 transition-all transform hover:scale-[1.02] active:scale-95">发送邮件：{PROFILE_DATA.email}</a>
+                                <div className="w-full h-48 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300 text-xs tracking-widest border border-dashed border-gray-200">WECHAT QR CODE</div>
+                            </div>
+                        </div>
+                    </motion.div>
+                </motion.div>,
+                document.body
+            );
+        };
+
+        const PortalPopup = ({ item, position, onMouseEnter, onMouseLeave, onClick }) => {
+            if (typeof document === 'undefined') return null;
+            return null; 
+        };
+
+        // --- Project Modal - 核心变化在此 ---
+        const ProjectModal = ({ projectId, onClose }) => {
+            const project = MOCK_DATA.find(p => p.id === projectId);
+            if (!project) return null;
+            
+            // --- 核心解析逻辑 (Updated for robustness against optional text) ---
+            const renderDescriptionContent = () => {
+                const desc = project.desc || '';
+                // Regex now ensures it catches images even without pipe/text: [img: path]
+                const regex = /(\[img: ([^|\]]+)(?:\|([^\]]*))?\])|(\[vid: ([^|\]]+)(?:\|([^\]]*))?\])/g;
+                const parts = [];
+                let match;
+                let keyCounter = 0;
+                const hoverImagePath = project.hoverImage || project.image;
+
+                while ((match = regex.exec(desc)) !== null) {
+                    const isVideo = match[4] !== undefined;
+                    const path = isVideo ? match[5].trim() : match[2].trim();
+                    // 跳过与封面图片相同的首个图片
+                    if (keyCounter === 0 && path === hoverImagePath) {
+                        keyCounter++;
+                        continue;
+                    }
+                    const key = `${isVideo ? 'vid' : 'img'}-${keyCounter++}`;
+
+                    parts.push(
+                        // FIXED: No margin, full width, no extra text
+                        <div key={key} className="w-full my-0 p-0 flex flex-col leading-none"> 
+                            <MediaDisplay src={path} className="w-full h-auto block" />
+                        </div>
+                    );
+                }
+                
+                return (
+                    <div className="w-full pb-0">
+                       {parts}
+                    </div>
+                );
+            };
+
+            return createPortal(
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-xl transition-all duration-500" onClick={onClose} />
+                    <motion.div initial={{ opacity: 0, scale: 0.95, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 40 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} className="relative bg-white w-[95%] md:w-[80%] h-[90%] rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col border border-white/40">
+                        {/* FIXED: 居中、小药丸形状的顶部标题栏 (磨砂质感) */}
+                        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 bg-white/70 backdrop-blur-xl px-6 py-3 rounded-full shadow-lg border border-white/40 pointer-events-auto">
+                            <h2 className="text-sm font-bold text-gray-900 whitespace-nowrap">{project.title}</h2>
+                            <div className="w-[1px] h-3 bg-gray-300"></div>
+                            <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-black"><X size={18} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
+                            <div className="w-full relative">
+                                <MediaDisplay src={project.hoverImage} className="w-full h-auto block" alt={project.title} />
+                            </div>
+                            
+                            {/* Content Wrapper: 无缝，全宽 */}
+                            <div className="w-full py-0">
+                                {renderDescriptionContent()}
+                            </div>
+                            {/* Removed Bottom Footer */}
+                        </div>
+                    </motion.div>
+                </motion.div>,
+                document.body
+            );
+        };
+
+        const ProfileBadge = ({ onOpenMarketing }) => (
+            <motion.div className="fixed bottom-8 left-8 z-50 pointer-events-auto" onClick={onOpenMarketing} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <div className="bg-white text-black rounded-full shadow-apple border border-white/60 p-3 cursor-pointer flex items-center justify-center w-12 h-12 hover:shadow-apple-hover transition-shadow relative overflow-hidden">
+                    <MoonPhase />
+                </div>
+            </motion.div>
+        );
+
+        // --- 月相动态组件 (Moon Phase Animation) ---
+        const MoonPhase = () => {
+            return (
+                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                    <div className="absolute inset-0 bg-yellow-400 rounded-full shadow-[0_0_8px_rgba(250,204,21,0.4)]"></div>
+                    <motion.div
+                        className="absolute top-0 left-0 w-6 h-6 bg-white rounded-full"
+                        initial={{ x: -10 }} 
+                        animate={{ x: [-10, -32, -32, -10] }} 
+                        transition={{
+                            duration: 8, 
+                            ease: "easeInOut",
+                            repeat: Infinity,
+                            repeatDelay: 0,
+                            repeatType: "reverse" 
+                        }}
+                    />
+                </div>
+            );
+        };
+
+        // --- 呼吸感背景组件 ---
+        const BreathingBackground = () => {
+            return (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    <motion.div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-blue-100/50 blur-[100px]" animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0.7, 0.4], }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
+                    <motion.div className="absolute -bottom-[10%] -right-[10%] w-[60%] h-[60%] rounded-full bg-cyan-100/50 blur-[100px]" animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4], }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
+                    <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] h-[40%] rounded-full bg-sky-100/40 blur-[80px]" animate={{ scale: [0.9, 1.2, 0.9], opacity: [0.3, 0.6, 0.3], }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} />
+                </div>
+            );
+        };
+
+        // --- 3. 视图组件 ---
+
+        // --- 关于我 (无限画布拼贴墙) ---
+        const AboutCanvasView = () => {
+            const containerRef = useRef(null);
+            const x = useMotionValue(0);
+            const y = useMotionValue(0);
+            
+            useEffect(() => {
+                const container = containerRef.current;
+                if (!container) return;
+                const handleWheel = (e) => {
+                    e.preventDefault();
+                    const newX = x.get() - e.deltaX;
+                    const newY = y.get() - e.deltaY;
+                    x.set(Math.max(-1500, Math.min(1500, newX)));
+                    y.set(Math.max(-1000, Math.min(1000, newY)));
+                };
+                container.addEventListener('wheel', handleWheel, { passive: false });
+                return () => container.removeEventListener('wheel', handleWheel);
+            }, [x, y]);
+
+            return (
+                <motion.div 
+                    ref={containerRef}
+                    className="w-full h-full cursor-grab active:cursor-grabbing relative overflow-hidden bg-white"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}
+                >
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+                    <motion.div
+                        drag
+                        style={{ x, y }}
+                        dragConstraints={{ left: -1000, right: 1000, top: -800, bottom: 800 }}
+                        dragElastic={0.1}
+                        className="absolute top-1/2 left-1/2 w-0 h-0"
+                    >
+                        {ABOUT_ITEMS.map((item, index) => {
+                            const isHero = item.type === 'hero';
+                            const isNote = item.type === 'note';
+                            return (
+                                <motion.div
+                                    key={item.id}
+                                    className={`absolute rounded-2xl shadow-card-float bg-white border border-white/60 overflow-hidden origin-center ${isHero ? 'z-20' : 'z-10 hover:z-30 transition-all duration-300'}`}
+                                    style={{ 
+                                        width: item.w, 
+                                        height: isHero ? 'auto' : item.h, 
+                                        x: item.x - item.w / 2, 
+                                        y: item.y - (isHero ? 300 : item.h / 2), 
+                                        rotate: item.rotate 
+                                    }}
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: 'spring', damping: 20, stiffness: 100, delay: index * 0.1 + 0.2 }}
+                                    whileHover={{ scale: 1.05, rotate: 0, transition: { duration: 0.3 } }}
+                                >
+                                    {isNote ? (
+                                        <div className={`w-full h-full p-6 flex flex-col justify-center items-center text-center ${item.bg || 'bg-white'}`}>
+                                            <p className="font-serif text-xl text-gray-800 leading-relaxed whitespace-pre-line">{item.content}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-full relative">
+                                            <MediaDisplay src={item.content} className="w-full h-auto block" />
+                                            {!isHero && item.label && (<div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm p-2 text-center"><span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{item.label}</span></div>)}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
+                    </motion.div>
+                </motion.div>
+            );
+        };
+
+        // --- 生活触角 (Life Canvas) ---
+        const LifeScatteredView = ({ data, hoveredCardId, setHoveredCardId, onSelectProject }) => {
+            const containerRef = useRef(null);
+            const x = useMotionValue(0);
+            const y = useMotionValue(0);
+
+            const itemsWithPos = useMemo(() => {
+                return data.map((item, index) => {
+                    const angle = index * 2.4; 
+                    const radius = 350 * Math.sqrt(index + 1); 
+                    return {
+                        ...item,
+                        x: radius * Math.cos(angle),
+                        y: radius * Math.sin(angle),
+                        rotate: (index % 2 === 0 ? 1 : -1) * (Math.random() * 5)
+                    };
+                });
+            }, [data]);
+
+            useEffect(() => {
+                const container = containerRef.current;
+                if (!container) return;
+                const handleWheel = (e) => {
+                    e.preventDefault(); 
+                    const newX = x.get() - e.deltaX;
+                    const newY = y.get() - e.deltaY;
+                    x.set(Math.max(-3000, Math.min(3000, newX)));
+                    y.set(Math.max(-3000, Math.min(3000, newY)));
+                };
+                container.addEventListener('wheel', handleWheel, { passive: false });
+                return () => container.removeEventListener('wheel', handleWheel);
+            }, [x, y]);
+
+            return (
+                <motion.div 
+                    ref={containerRef}
+                    className="w-full h-full cursor-grab active:cursor-grabbing relative overflow-hidden bg-white"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                >
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+                    
+                    <motion.div
+                        drag
+                        style={{ x, y }}
+                        dragConstraints={{ left: -3000, right: 3000, top: -3000, bottom: 3000 }}
+                        dragElastic={0.1}
+                        className="absolute top-1/2 left-1/2 w-0 h-0"
+                    >
+                         <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-0 text-center">
+                             <h1 className="text-[4vw] font-serif italic text-gray-200 whitespace-nowrap">Life & Thoughts</h1>
+                         </div>
+
+                        {itemsWithPos.map((item, index) => (
+                            <motion.div
+                                key={item.id}
+                                className="absolute"
+                                style={{ 
+                                    x: item.x, 
+                                    y: item.y,
+                                    marginLeft: -150, 
+                                    marginTop: -150,
+                                    rotate: item.rotate
+                                }}
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', damping: 20, stiffness: 100, delay: index * 0.05 }}
+                                className2="z-10 hover:z-50 transition-all duration-300"
+                            >
+                                <Card
+                                    item={item}
+                                    rowIndex={0} colIndex={0} 
+                                    isHovered={hoveredCardId === item.id}
+                                    isDimmed={hoveredCardId !== null && hoveredCardId !== item.id}
+                                    onHover={setHoveredCardId}
+                                    onLeave={() => setHoveredCardId(null)}
+                                    onSelect={onSelectProject} 
+                                    enableLayout={false} 
+                                />
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                </motion.div>
+            );
+        };
+
+        // --- 数字图谱视图 (3D) - 修复移动端触摸问题 ---
+        const Digital3DMapView = ({ data, hoveredCardId, setHoveredCardId, activeFilter, onSelectProject }) => {
+            const containerRef = useRef(null);
+            const requestRef = useRef();
+            const [rotation, setRotation] = useState({ x: 0, y: 0 });
+            const isDragging = useRef(false);
+            const lastMousePos = useRef({ x: 0, y: 0 });
+            const touchStartPos = useRef({ x: 0, y: 0 });
+
+            const animate = () => {
+                if (!isDragging.current) {
+                    setRotation(prev => ({ x: prev.x, y: prev.y + 0.0008 })); // Slower rotation
+                }
+                requestRef.current = requestAnimationFrame(animate);
+            };
+
+            useEffect(() => {
+                requestRef.current = requestAnimationFrame(animate);
+                return () => cancelAnimationFrame(requestRef.current);
+            }, []);
+
+            // 鼠标事件处理
+            const handleMouseDown = (e) => { 
+                isDragging.current = true; 
+                lastMousePos.current = { x: e.clientX, y: e.clientY }; 
+            };
+            
+            const handleMouseMove = (e) => {
+                if (!isDragging.current) return;
+                const deltaX = e.clientX - lastMousePos.current.x;
+                const deltaY = e.clientY - lastMousePos.current.y;
+                setRotation(prev => ({ 
+                    x: Math.max(-0.5, Math.min(0.5, prev.x + deltaY * 0.005)), 
+                    y: prev.y + deltaX * 0.005 
+                }));
+                lastMousePos.current = { x: e.clientX, y: e.clientY };
+            };
+            
+            const handleMouseUp = () => { 
+                isDragging.current = false; 
+            };
+
+            // 触摸事件处理 - 新增
+            const handleTouchStart = (e) => {
+                if (e.touches.length === 1) {
+                    isDragging.current = true;
+                    touchStartPos.current = { 
+                        x: e.touches[0].clientX, 
+                        y: e.touches[0].clientY 
+                    };
+                    e.preventDefault(); // 防止页面滚动
+                }
+            };
+
+            const handleTouchMove = (e) => {
+                if (!isDragging.current || e.touches.length !== 1) return;
+                
+                const currentX = e.touches[0].clientX;
+                const currentY = e.touches[0].clientY;
+                const deltaX = currentX - touchStartPos.current.x;
+                const deltaY = currentY - touchStartPos.current.y;
+                
+                // 移动端需要更大的灵敏度
+                setRotation(prev => ({ 
+                    x: Math.max(-0.5, Math.min(0.5, prev.x + deltaY * 0.008)), 
+                    y: prev.y + deltaX * 0.008 
+                }));
+                
+                touchStartPos.current = { x: currentX, y: currentY };
+                e.preventDefault(); // 防止页面滚动
+            };
+
+            const handleTouchEnd = () => {
+                isDragging.current = false;
+            };
+
+            const use3DProjection = (x, y, z, rotX, rotY) => {
+                const x1 = x * Math.cos(rotY) - z * Math.sin(rotY);
+                const z1 = z * Math.cos(rotY) + x * Math.sin(rotY);
+                const y2 = y * Math.cos(rotX) - z1 * Math.sin(rotX);
+                const z2 = z1 * Math.cos(rotX) + y * Math.sin(rotX);
+                const perspective = 800;
+                const scale = perspective / (perspective + z2);
+                return { x: x1 * scale, y: y2 * scale, scale: scale, zIndex: Math.floor(scale * 100), opacity: Math.max(0.2, Math.min(1, scale * scale)) };
+            };
+
+            const nodes = useMemo(() => {
+                const nodeList = [];
+                MAP_LEVELS.forEach(level => {
+                    nodeList.push({ ...level, type: 'main', x: level.coords.x, y: level.coords.y, z: level.coords.z || 0 });
+                });
+                const designProjects = data.filter(p => p.type === 'design');
+                designProjects.forEach((project, i) => {
+                    const parent = MAP_LEVELS.find(l => l.id === project.projectType);
+                    if (parent) {
+                        const radius = 140; 
+                        const theta = i * 2.4; 
+                        const phi = Math.acos(1 - 2 * (i + 0.5) / designProjects.length);
+                        nodeList.push({
+                            ...project, type: 'sub',
+                            x: parent.coords.x + radius * Math.sin(phi) * Math.cos(theta),
+                            y: parent.coords.y + radius * Math.sin(phi) * Math.sin(theta),
+                            z: radius * Math.cos(phi),
+                            colorClass: parent.colorClass
+                        });
+                    }
+                });
+                return nodeList;
+            }, [data]);
+
+            return (
+                <div 
+                    ref={containerRef} 
+                    className="w-full h-full bg-white cursor-move relative overflow-hidden" 
+                    onMouseDown={handleMouseDown} 
+                    onMouseMove={handleMouseMove} 
+                    onMouseUp={handleMouseUp} 
+                    onMouseLeave={handleMouseUp}
+                    onTouchStart={handleTouchStart} // 新增触摸事件
+                    onTouchMove={handleTouchMove}   // 新增触摸事件
+                    onTouchEnd={handleTouchEnd}     // 新增触摸事件
+                    style={{ touchAction: 'none' }} // 防止触摸时的默认行为
+                >
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+                    {/* 呼吸背景 */}
+                    <BreathingBackground />
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-0 h-0">
+                        {nodes.map((node) => {
+                            const proj = use3DProjection(node.x, node.y, node.z, rotation.x, rotation.y);
+                            const isMain = node.type === 'main';
+                            return (
+                                <div 
+                                    key={node.id} 
+                                    className={`absolute rounded-full flex items-center justify-center transition-colors duration-300 cursor-pointer ${isMain ? node.colorClass : 'bg-gray-400 hover:bg-black'} ${isMain ? 'shadow-lg' : 'shadow-sm'}`}
+                                    style={{ 
+                                        transform: `translate3d(${proj.x}px, ${proj.y}px, 0) scale(${proj.scale})`, 
+                                        zIndex: proj.zIndex, 
+                                        opacity: proj.opacity, 
+                                        width: isMain ? 28 : 12, 
+                                        height: isMain ? 28 : 12, 
+                                        marginLeft: isMain ? -14 : -6, 
+                                        marginTop: isMain ? -14 : -6 
+                                    }}
+                                    onMouseEnter={() => !isMain && setHoveredCardId(node.id)} 
+                                    onMouseLeave={() => !isMain && setHoveredCardId(null)} 
+                                    onClick={(e) => { e.stopPropagation(); if (!isMain) onSelectProject(node.id); }}
+                                >
+                                    {/* Optimized Label Positioning */}
+                                    <div className={`absolute whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
+                                        isMain 
+                                        ? 'top-full mt-3 left-1/2 -translate-x-1/2 text-sm font-bold text-gray-500 tracking-[0.2em] uppercase' 
+                                        : 'top-full mt-2 left-1/2 -translate-x-1/2 text-xs text-gray-600 font-medium'
+                                    }`} 
+                                    style={{ opacity: isMain || hoveredCardId === node.id ? 1 : 0.6 }}>
+                                        {isMain ? node.caption : node.title}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 卡片组件 (用于 Canvas) ---
+        const Card = forwardRef(({ item, isHovered, isDimmed, onHover, onLeave, onSelect, rowIndex, colIndex, width, height, enableLayout = true }, ref) => {
+            const cardRef = useRef(null);
+            const [popupPosition, setPopupPosition] = useState(null);
+            const hoverTimeoutRef = useRef(null);
+
+            const calculatePosition = () => {
+                if (cardRef.current) {
+                    const rect = cardRef.current.getBoundingClientRect();
+                    const style = { top: rect.bottom + 12, left: rect.left + (rect.width/2) - 180 }; 
+                    setPopupPosition(style);
+                }
+            };
+
+            const handleMouseEnter = () => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                calculatePosition();
+                onHover(item.id);
+            };
+
+            const handleMouseLeave = () => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                    onLeave();
+                    setPopupPosition(null);
+                }, 300);
+            };
+            
+            const handlePopupEnter = () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); };
+            const handlePopupLeave = () => { hoverTimeoutRef.current = setTimeout(() => { onLeave(); setPopupPosition(null); }, 300); };
+
+            const cardVariants = {
+                hidden: { opacity: 0, y: 100, scale: 0.9, filter: 'blur(10px)' },
+                visible: (custom) => ({ 
+                    opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+                    transition: { delay: custom * 0.1, type: "spring", stiffness: 50, damping: 15, mass: 1 } 
+                }),
+                dimmed: { opacity: 0.3, scale: 0.98, filter: 'blur(2px)', transition: { duration: 0.3 } },
+                hover: { zIndex: 100, transition: { duration: 0.1 } }
+            };
+
+            const renderInnerContent = () => {
+                switch (item.type) {
+                case 'thought':
+                    return (
+                    <div className={`h-full w-full p-8 flex flex-col justify-center items-center text-center ${item.bg || 'bg-stone-50'} transition-colors duration-500 group-hover:bg-white`}>
+                        <div className="mb-4 text-gray-300"><Sparkles size={16} strokeWidth={1} /></div>
+                        <p className="text-xl md:text-2xl font-serif text-gray-800 leading-relaxed italic">{item.content}</p>
+                        <div className="mt-6 h-[1px] w-8 bg-gray-300"></div>
+                        <div className="text-[10px] tracking-[0.2em] text-gray-400 font-medium uppercase mt-3">{item.title}</div>
+                    </div>
+                    );
+                default: 
+                    return (
+                    <div className="h-full w-full relative group">
+                        <MediaDisplay src={item.image} className={`w-full h-full object-cover transition-all duration-500 ${isHovered ? 'brightness-50 blur-[2px]' : 'scale-100'}`} />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                        <div className="absolute bottom-0 left-0 right-0 p-5 text-white translate-y-2 group-hover:translate-y-0 transition-transform">
+                        <div className="text-[10px] border border-white/40 inline-block px-1.5 py-0.5 rounded mb-1 backdrop-blur-md">
+                            {item.category || item.tags?.[0] || item.type}
+                        </div>
+                        <h3 className="text-base font-bold leading-tight truncate">{item.title}</h3>
+                        </div>
+                    </div>
+                    );
+                }
+            };
+
+            return (
+                <>
+                    <motion.div
+                    ref={cardRef}
+                    layout={enableLayout} // Controlled layout animation
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate={isDimmed ? 'dimmed' : 'visible'}
+                    custom={(rowIndex * 3) + colIndex * 0.5}
+                    style={{ zIndex: isHovered ? 100 : 1 }}
+                    className={`relative shrink-0 ${width || item.width} ${height || item.height || 'h-48'} rounded-xl overflow-visible cursor-pointer shadow-lg hover:shadow-2xl border border-white/50`}
+                    onClick={(e) => { e.stopPropagation(); onSelect(item.id); }}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    >
+                        <div className={`w-full h-full rounded-xl overflow-hidden bg-white`}>
+                            {item.bg ? <div className={`w-full h-full ${item.bg}`}>{renderInnerContent()}</div> : renderInnerContent()}
+                        </div>
+                    </motion.div>
+
+                    <AnimatePresence>
+                        {isHovered && popupPosition && (item.hoverImage || item.desc) && (
+                            <PortalPopup 
+                                item={item} 
+                                position={popupPosition} 
+                                onMouseEnter={handlePopupEnter}
+                                onMouseLeave={handlePopupLeave}
+                                onClick={() => onSelect(item.id)}
+                            />
+                        )}
+                    </AnimatePresence>
+                </>
+            );
+        });
+        Card.displayName = 'Card';
+
+        // --- Infinite Canvas 视图组件 ---
+        const InfiniteCanvasView = ({ filteredData, hoveredCardId, setHoveredCardId, onSelectProject }) => {
+            const containerRef = useRef(null);
+            const x = useMotionValue(0);
+            const y = useMotionValue(0);
+
+            const displayData = useMemo(() => {
+                return filteredData.filter(item => item.type !== 'photo');
+            }, [filteredData]);
+
+            const rows = useMemo(() => {
+                const result = [[], [], []];
+                displayData.forEach((item, i) => { result[i % 3].push(item); });
+                return result;
+            }, [displayData]);
+
+            useEffect(() => {
+                const container = containerRef.current;
+                if (!container) return;
+                const handleWheel = (e) => {
+                    e.preventDefault(); 
+                    const newX = x.get() - e.deltaX;
+                    const newY = y.get() - e.deltaY;
+                    x.set(Math.max(-1500, Math.min(0, newX)));
+                    y.set(Math.max(-800, Math.min(0, newY)));
+                };
+                container.addEventListener('wheel', handleWheel, { passive: false });
+                return () => container.removeEventListener('wheel', handleWheel);
+            }, [x, y]);
+
+            return (
+                <motion.div 
+                    ref={containerRef}
+                    className="flex-1 w-full h-full cursor-grab active:cursor-grabbing relative overflow-hidden bg-white"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+                    <motion.div
+                        drag
+                        style={{ x, y }}
+                        dragConstraints={{ left: -1500, right: 0, top: -800, bottom: 0 }}
+                        dragElastic={0.1} 
+                        dragTransition={{ bounceStiffness: 200, bounceDamping: 20 }} 
+                        className="absolute top-0 left-0 min-w-[150vw] min-h-[120vh] p-20 md:p-32 flex flex-col justify-center gap-12"
+                    >
+                        <div className="absolute top-10 left-20 pointer-events-none opacity-10 select-none"><h1 className="text-[8vw] font-black leading-none tracking-tighter text-gray-900">见证理性<br/>与美的<br/>刚柔并济</h1></div>
+                        {rows.map((rowItems, rowIndex) => (
+                            <motion.div key={rowIndex} className="flex items-center gap-12" style={{ paddingLeft: `${rowIndex * 15}vw` }}>
+                                <AnimatePresence mode='popLayout'>
+                                    {rowItems.map((item, colIndex) => (
+                                        <Card
+                                            key={item.id}
+                                            rowIndex={rowIndex}
+                                            colIndex={colIndex}
+                                            item={item}
+                                            isHovered={hoveredCardId === item.id}
+                                            isDimmed={hoveredCardId !== null && hoveredCardId !== item.id}
+                                            onHover={setHoveredCardId}
+                                            onLeave={() => setHoveredCardId(null)}
+                                            onSelect={onSelectProject}
+                                            enableLayout={true} // Enable layout animation for grid
+                                        />
+                                    ))}
+                                </AnimatePresence>
+                                <div className="flex items-center gap-2 text-gray-300 opacity-50"><div className="w-12 h-[1px] bg-gray-400" /><span className="text-[10px] uppercase font-mono">R{rowIndex + 1}</span></div>
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                </motion.div>
+            );
+        };
+
+        // --- 移动端导航组件 - 优化药丸形式 ---
+        const MobileNavigation = ({ activeTab, onTabChange, activeFilter, onFilterChange, viewMode, onViewModeChange }) => {
+            return (
+                <div className="mobile-nav-bottom">
+                    <div className="mobile-safe-area">
+                        {/* 主导航 - 药丸形式 */}
+                        <div className="px-4 pt-3 pb-2">
+                            <div className="bg-white/90 backdrop-blur-md rounded-full p-1.5 shadow-sm border border-gray-100">
+                                <div className="flex justify-between">
+                                    {['projects', 'life', 'about'].map(t => {
+                                        const label = NAV_STRUCTURE.find(n => n.id === t).label;
+                                        const isActive = activeTab === t;
+                                        return (
+                                            <button 
+                                                key={t} 
+                                                onClick={() => onTabChange(t)} 
+                                                className={`flex-1 flex flex-col items-center py-1.5 rounded-full transition-all duration-300 ${
+                                                    isActive ? 'bg-black text-white shadow-sm' : 'text-gray-500'
+                                                }`}
+                                            >
+                                                {t === 'projects' && <LayoutGrid size={18} className={isActive ? 'text-white' : 'text-gray-400'} />}
+                                                {t === 'life' && <Sparkles size={18} className={isActive ? 'text-white' : 'text-gray-400'} />}
+                                                {t === 'about' && <Hand size={18} className={isActive ? 'text-white' : 'text-gray-400'} />}
+                                                <span className="text-xs mt-1 font-medium">{label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* 项目子导航 - 药丸形式 */}
+                        {activeTab === 'projects' && (
+                            <div className="px-4 pb-4">
+                                <div className="bg-white/90 backdrop-blur-md rounded-full p-1.5 shadow-sm border border-gray-100">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex gap-1 flex-1 mr-2">
+                                            {['brand', 'fullstack'].map(f => {
+                                                const label = NAV_STRUCTURE[0].children.find(c => c.id === f).label;
+                                                const isActive = activeFilter === f;
+                                                return (
+                                                    <button 
+                                                        key={f} 
+                                                        onClick={() => onFilterChange(isActive ? 'all' : f)} 
+                                                        className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                                                            isActive ? 'bg-gray-100 text-black font-bold' : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="flex gap-1">
+                                            <button 
+                                                onClick={() => onViewModeChange('canvas')} 
+                                                className={`p-1.5 rounded-full transition-colors ${
+                                                    viewMode === 'canvas' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                                title="无限画布"
+                                            >
+                                                <LayoutGrid size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onViewModeChange('map')} 
+                                                className={`p-1.5 rounded-full transition-colors ${
+                                                    viewMode === 'map' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                                title="数字图谱"
+                                            >
+                                                <Globe size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- App 主入口 ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('projects'); 
+            const [activeFilter, setActiveFilter] = useState('all'); 
+            const [hoveredCardId, setHoveredCardId] = useState(null);
+            const [viewMode, setViewMode] = useState('canvas'); 
+            const [selectedProjectId, setSelectedProjectId] = useState(null); 
+            const [isMarketingOpen, setIsMarketingOpen] = useState(false);
+            const [isMobile, setIsMobile] = useState(false);
+
+            // 检测设备类型
+            useEffect(() => {
+                const checkMobile = () => {
+                    setIsMobile(window.innerWidth <= 768);
+                };
+                
+                checkMobile();
+                window.addEventListener('resize', checkMobile);
+                return () => window.removeEventListener('resize', checkMobile);
+            }, []);
+
+            const filteredData = useMemo(() => {
+                if (activeTab === 'projects') {
+                    let projects = MOCK_DATA.filter(item => item.type === 'design');
+                    if (activeFilter !== 'all') {
+                        projects = projects.filter(p => p.projectType === activeFilter);
+                    }
+                    return projects;
+                } else if (activeTab === 'life') {
+                    return MOCK_DATA.filter(item => item.type === 'thought' || item.type === 'photo');
+                }
+                return [];
+            }, [activeTab, activeFilter]);
+
+            const handleTabChange = (tabId) => {
+                setActiveTab(tabId);
+                if (tabId === 'projects') { 
+                    setActiveFilter('all'); 
+                } else { 
+                    setActiveFilter('all'); 
+                }
+                
+                if (tabId === 'projects') {
+                   if (viewMode !== 'map' && viewMode !== 'canvas') setViewMode('canvas');
+                } else if (tabId === 'life') {
+                   setViewMode('canvas'); 
+                }
+            };
+            
+            const handleLogoClick = () => { 
+                setActiveTab('projects'); 
+                setActiveFilter('all'); 
+                setViewMode('canvas'); 
+            };
+
+            return (
+                <div className="h-screen w-screen bg-white text-gray-900 font-sans overflow-hidden flex flex-col relative">
+                    {/* 桌面端导航 */}
+                    {!isMobile && (
+                        <header className="fixed top-0 left-0 w-full px-6 py-4 z-50 flex flex-col items-start gap-3 pointer-events-none">
+                            {/* Row 1: Main Nav - 修复：统一白色样式 */}
+                            <div className="flex items-center gap-3 pointer-events-auto">
+                                {/* Logo Capsule */}
+                                <div 
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-full cursor-pointer transition-all duration-300 bg-white/90 backdrop-blur-md shadow-sm border border-gray-100" 
+                                    onClick={handleLogoClick}
+                                >
+                                    <MediaDisplay src={PROFILE_DATA.logo} className="w-8 h-8 object-contain" alt="Logo" />
+                                    <span className="font-bold text-sm tracking-tight">见者由份</span>
+                                </div>
+
+                                {/* Nav Capsule */}
+                                <div className="p-1.5 rounded-full flex gap-1 transition-all duration-300 bg-white/90 backdrop-blur-md shadow-sm border border-gray-100">
+                                    {['projects', 'life', 'about'].map(t => {
+                                        const label = NAV_STRUCTURE.find(n => n.id === t).label;
+                                        const isActive = activeTab === t;
+                                        return (
+                                            <button key={t} onClick={() => handleTabChange(t)} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${isActive ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
+                                                {label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            
+                            {/* Row 2: Sub Nav (Only for Projects) */}
+                            <AnimatePresence>
+                                {activeTab === 'projects' && (
+                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center bg-white/90 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-gray-100 self-start ml-1 pointer-events-auto">
+                                        {/* Sub Categories */}
+                                        <div className="flex gap-1 mr-2">
+                                            {['brand', 'fullstack'].map(f => {
+                                                const label = NAV_STRUCTURE[0].children.find(c => c.id === f).label;
+                                                const isActive = activeFilter === f;
+                                                return (
+                                                    <button 
+                                                        key={f} 
+                                                        onClick={() => setActiveFilter(isActive ? 'all' : f)} 
+                                                        className={`px-3 py-1.5 rounded-full text-xs transition-colors ${isActive ? 'bg-gray-100 text-black font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                        
+                                        {/* Divider */}
+                                        <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+                                        
+                                        {/* View Switcher */}
+                                        <div className="flex gap-1 ml-2">
+                                            <button 
+                                                onClick={() => setViewMode('canvas')} 
+                                                className={`p-1.5 rounded-full transition-colors ${viewMode === 'canvas' ? 'bg-gray-100 text-black' : 'text-gray-400 hover:text-gray-600'}`} 
+                                                title="无限画布"
+                                            >
+                                                <LayoutGrid size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={() => setViewMode('map')} 
+                                                className={`p-1.5 rounded-full transition-colors ${viewMode === 'map' ? 'bg-gray-100 text-black' : 'text-gray-400 hover:text-gray-600'}`} 
+                                                title="数字图谱"
+                                            >
+                                                <Globe size={16} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </header>
+                    )}
+
+                    {/* 移动端Logo */}
+                    {isMobile && (
+                        <div className="fixed top-4 left-4 z-50">
+                            <div 
+                                className="flex items-center gap-2 px-3 py-2 rounded-full cursor-pointer transition-all duration-300 bg-white/90 backdrop-blur-md shadow-sm border border-gray-100" 
+                                onClick={handleLogoClick}
+                            >
+                                <MediaDisplay src={PROFILE_DATA.logo} className="w-6 h-6 object-contain" alt="Logo" />
+                                <span className="font-bold text-xs tracking-tight">见者由份</span>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <AnimatePresence mode='wait'>
+                        {activeTab === 'about' ? (
+                            <motion.div key="about" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 pt-20 z-10"><AboutCanvasView /></motion.div>
+                        ) : (
+                            activeTab === 'life' ? (
+                                <motion.div key="life" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-0"><LifeScatteredView data={filteredData} hoveredCardId={hoveredCardId} setHoveredCardId={setHoveredCardId} onSelectProject={setSelectedProjectId} /></motion.div>
+                            ) : (
+                                // Projects tab logic
+                                <>
+                                    {viewMode === 'canvas' && (
+                                        <InfiniteCanvasView 
+                                            key="canvas" 
+                                            filteredData={filteredData} 
+                                            hoveredCardId={hoveredCardId} 
+                                            setHoveredCardId={setHoveredCardId} 
+                                            onSelectProject={setSelectedProjectId} 
+                                        />
+                                    )}
+                                    {viewMode === 'map' && (
+                                        <Digital3DMapView 
+                                            key="map" 
+                                            data={MOCK_DATA} 
+                                            hoveredCardId={hoveredCardId} 
+                                            setHoveredCardId={setHoveredCardId} 
+                                            activeFilter={activeFilter} 
+                                            onSelectProject={setSelectedProjectId} 
+                                        />
+                                    )}
+                                </>
+                            )
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {selectedProjectId && (<ProjectModal projectId={selectedProjectId} onClose={() => setSelectedProjectId(null)} />)}
+                        {isMarketingOpen && (<MarketingModal onClose={() => setIsMarketingOpen(false)} />)}
+                    </AnimatePresence>
+
+                    {/* 移动端导航 */}
+                    {isMobile && (
+                        <MobileNavigation 
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                            activeFilter={activeFilter}
+                            onFilterChange={setActiveFilter}
+                            viewMode={viewMode}
+                            onViewModeChange={setViewMode}
+                        />
+                    )}
+
+                    {/* 月亮入口常驻 */}
+                    <ProfileBadge onOpenMarketing={() => setIsMarketingOpen(true)} />
+                    
+                    {/* 桌面端底部提示 */}
+                    {!isMobile && activeTab !== 'about' && (
+                        <footer className="fixed bottom-6 right-6 px-4 py-2 bg-white/80 backdrop-blur-md rounded-full border border-gray-200/50 shadow-sm flex items-center gap-2 pointer-events-none z-40">
+                            <Hand size={14} className="text-gray-400" />
+                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
+                                {viewMode === 'canvas' ? 'Drag or Scroll to Explore' : 'Click Center to Drill Down'}
+                            </span>
+                            <Move size={12} className="text-gray-400 ml-1" />
+                        </footer>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
